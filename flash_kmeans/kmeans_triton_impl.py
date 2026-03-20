@@ -109,16 +109,9 @@ def batch_kmeans_Euclid(
         else:
             centroids_new = triton_centroid_update_sorted_euclid(x, cluster_ids, centroids)
 
-        if check_convergence or verbose:
-            center_shift = (centroids_new - centroids).norm(dim=-1).max()
-            if verbose:
-                print(f"Iter {it}, center shift: {center_shift.item():.6f}")
-            if center_shift < tol:
-                break
-
         centroids = centroids_new
 
-    return cluster_ids, centroids, it + 1
+    return cluster_ids, centroids, max_iters
 
 
 def batch_kmeans_Cosine(x, n_clusters, max_iters=100, tol=0.0, init_centroids=None, verbose=False):
