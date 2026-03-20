@@ -99,8 +99,8 @@ def batch_kmeans_Euclid(
     check_convergence = tol > 0
 
     for it in range(max_iters):
-        # Pre-compute centroid squared norms
-        c_sq = (centroids.float() ** 2).sum(-1)
+        # Pre-compute centroid squared norms (stay in input dtype, cast in kernel)
+        c_sq = (centroids ** 2).sum(-1)
 
         cluster_ids = euclid_assign_triton(x, centroids, x_sq, out=out, c_sq=c_sq,
                                            use_heuristic=use_heuristic)
