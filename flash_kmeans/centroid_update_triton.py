@@ -120,25 +120,18 @@ def torch_loop_centroid_update_cosine(x_norm: torch.Tensor, cluster_ids: torch.T
     return new_centroids
 
 
-def triton_centroid_update_euclid(x: torch.Tensor, cluster_ids: torch.Tensor, old_centroids: torch.Tensor):
-    """Compute centroids for Euclidean KMeans using Triton.
-
-    Args:
-        x (Tensor): (B, N, D) input vectors (float16/float32)
-        cluster_ids (LongTensor): (B, N) cluster assignment per point
-        old_centroids (Tensor): (B, K, D) previous centroids (same dtype as x)
-
-    Returns:
-        Tensor: (B, K, D) updated centroids (dtype == x.dtype)
-    """
+def triton_centroid_update_euclid(x: torch.Tensor, cluster_ids: torch.Tensor, old_centroids: torch.Tensor,
+                                  *, centroid_sums: torch.Tensor = None, centroid_counts: torch.Tensor = None):
+    """Compute centroids for Euclidean KMeans using Triton."""
     assert x.is_cuda and cluster_ids.is_cuda, "Input tensors must be on CUDA device"
     B, N, D = x.shape
     K = old_centroids.shape[1]
     assert cluster_ids.shape == (B, N)
 
-    # Allocate accumulation buffers
-    centroid_sums = torch.zeros((B, K, D), device=x.device, dtype=torch.float32)
-    centroid_counts = torch.zeros((B, K), device=x.device, dtype=torch.int32)
+    if centroid_sums is None:
+        centroid_sums = torch.zeros((B, K, D), device=x.device, dtype=torch.float32)
+    if centroid_counts is None:
+        centroid_counts = torch.zeros((B, K), device=x.device, dtype=torch.int32)
 
     total_tokens = B * N
     BLOCK_D = 128  # tuneable
