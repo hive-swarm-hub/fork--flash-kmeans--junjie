@@ -290,7 +290,6 @@ def _euclid_assign_kernel(
             + offs_d[:, None] * stride_c_d
         )
         c_tile = tl.load(c_ptrs, mask=k_mask[None, :], other=0.0)
-        c_tile = c_tile
 
         # load c_sq for the tile  (BLOCK_K,)
         csq_ptrs = c_sq_ptr + pid_b * stride_csq_b + k_offsets * stride_csq_k
