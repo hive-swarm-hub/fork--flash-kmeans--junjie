@@ -96,20 +96,31 @@ def batch_kmeans_Euclid(
 
     # Pre-allocate output buffer
     out = torch.empty((B, N), device=x.device, dtype=torch.int32)
-    check_convergence = tol > 0
+    # scatter_add is faster than sorted triton update for very large K
+    use_scatter = n_clusters > 4096
+    if use_scatter:
+        x_f32 = x.float()
+        ones_f32 = torch.ones((B, N), device=x.device, dtype=torch.float32)
+        cs = torch.zeros((B, n_clusters, D), device=x.device, dtype=torch.float32)
+        cc = torch.zeros((B, n_clusters), device=x.device, dtype=torch.float32)
 
     for it in range(max_iters):
-        # Pre-compute centroid squared norms (stay in input dtype, cast in kernel)
         c_sq = (centroids ** 2).sum(-1)
-
         cluster_ids = euclid_assign_triton(x, centroids, x_sq, out=out, c_sq=c_sq,
                                            use_heuristic=use_heuristic)
-        if n_clusters <= 256:
-            centroids_new = triton_centroid_update_euclid(x, cluster_ids, centroids)
+        if use_scatter:
+            cil = cluster_ids.long()
+            cs.zero_()
+            cc.zero_()
+            cs.scatter_add_(1, cil.unsqueeze(-1).expand(-1, -1, D), x_f32)
+            cc.scatter_add_(1, cil, ones_f32)
+            ccl = cc.unsqueeze(-1).clamp_(min=1.0)
+            cn = (cs / ccl).to(x.dtype)
+            centroids = torch.where((cc == 0).unsqueeze(-1), centroids, cn)
+        elif n_clusters <= 256:
+            centroids = triton_centroid_update_euclid(x, cluster_ids, centroids)
         else:
-            centroids_new = triton_centroid_update_sorted_euclid(x, cluster_ids, centroids)
-
-        centroids = centroids_new
+            centroids = triton_centroid_update_sorted_euclid(x, cluster_ids, centroids)
 
     return cluster_ids, centroids, max_iters
 
