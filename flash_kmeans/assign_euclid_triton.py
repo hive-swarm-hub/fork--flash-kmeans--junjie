@@ -263,11 +263,11 @@ def _euclid_assign_kernel(
         + n_offsets[:, None] * stride_x_n
         + offs_d[None, :] * stride_x_d
     )
-    x_tile = tl.load(x_ptrs, mask=n_mask[:, None], other=0.0)
+    x_tile = tl.load(x_ptrs, mask=n_mask[:, None], other=0.0, eviction_policy='evict_first')
 
     # Pre-load x_sq for the tile  (BLOCK_N,)
     xsq_ptrs = x_sq_ptr + pid_b * stride_xsq_b + n_offsets * stride_xsq_n
-    x_sq_tile = tl.load(xsq_ptrs, mask=n_mask, other=0.0).to(tl.float32)
+    x_sq_tile = tl.load(xsq_ptrs, mask=n_mask, other=0.0, eviction_policy='evict_first').to(tl.float32)
 
     # Init best distance / index
     best_dist = tl.full((BLOCK_N,), float('inf'), tl.float32)
