@@ -104,7 +104,10 @@ def batch_kmeans_Euclid(
 
         cluster_ids = euclid_assign_triton(x, centroids, x_sq, out=out, c_sq=c_sq,
                                            use_heuristic=use_heuristic)
-        centroids_new = triton_centroid_update_sorted_euclid(x, cluster_ids, centroids)
+        if n_clusters <= 256:
+            centroids_new = triton_centroid_update_euclid(x, cluster_ids, centroids)
+        else:
+            centroids_new = triton_centroid_update_sorted_euclid(x, cluster_ids, centroids)
 
         if check_convergence or verbose:
             center_shift = (centroids_new - centroids).norm(dim=-1).max()
